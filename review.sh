@@ -114,13 +114,23 @@ generate_ai_review() {
     
     log "🤖 Generating AI review using Adesso AI Hub..."
     
-    # Create a comprehensive prompt for the AI Hub
+    # Create a comprehensive prompt for the AI Hub - limit diff size for API
     local prompt_content=""
     prompt_content+="Führe eine umfassende Code-Review der folgenden Änderungen durch:\n\n"
     prompt_content+="BRANCH: $branch_name\n"
     prompt_content+="AUTOR: $commit_author\n" 
     prompt_content+="COMMIT: $commit_message\n\n"
-    prompt_content+="DIFF:\n$diff_content\n\n"
+    
+    # Limit diff content to avoid API payload limits (max 10000 chars)
+    local limited_diff
+    if [ ${#diff_content} -gt 10000 ]; then
+        limited_diff="${diff_content:0:10000}\n\n... (Diff gekürzt aufgrund der Größe) ..."
+        log "⚠️ Diff zu groß (${#diff_content} chars), gekürzt auf 10000 chars"
+    else
+        limited_diff="$diff_content"
+    fi
+    
+    prompt_content+="DIFF:\n$limited_diff\n\n"
     prompt_content+="Bitte analysiere:\n"
     prompt_content+="1. Code-Qualität und Best Practices\n"
     prompt_content+="2. Potentielle Bugs oder Sicherheitslücken\n"
@@ -131,6 +141,10 @@ generate_ai_review() {
     
     # Create JSON payload - use mktemp for proper temp file
     local temp_request_file=$(mktemp)
+    
+    # Escape JSON content properly
+    local escaped_prompt_content=$(echo "$prompt_content" | jq -Rs .)
+    
     cat > "$temp_request_file" << EOF
 {
     "model": "$ADESSO_MODEL",
@@ -141,13 +155,18 @@ generate_ai_review() {
         },
         {
             "role": "user", 
-            "content": "$prompt_content"
+            "content": $escaped_prompt_content
         }
     ],
     "max_tokens": 2000,
     "temperature": 0.3
 }
 EOF
+
+    # Debug: Log request details
+    log "📝 API Request Model: $ADESSO_MODEL"
+    log "📝 API Request URL: $ADESSO_HUB_URL"  
+    log "🔍 Request payload size: $(wc -c < "$temp_request_file") bytes"
 
     # Make API request to Adesso AI Hub
     local ai_response
@@ -157,7 +176,22 @@ EOF
         -d @"$temp_request_file" \
         "$ADESSO_HUB_URL" 2>/dev/null)
     
-    if [ $? -eq 0 ] && [ -n "$ai_response" ]; then
+    local curl_exit_code=$?
+    
+    if [ $curl_exit_code -eq 0 ] && [ -n "$ai_response" ]; then
+        # Debug: Log response for troubleshooting (first 200 chars)
+        local debug_response=$(echo "$ai_response" | head -c 200)
+        log "🔍 AI Hub Response (first 200 chars): ${debug_response}..."
+        
+        # Check if response contains error
+        local error_message=$(echo "$ai_response" | jq -r '.error.message // empty' 2>/dev/null)
+        if [ -n "$error_message" ]; then
+            log "❌ AI-Hub API Error: $error_message"
+            echo "AI-Review konnte nicht erstellt werden - API Error: $error_message"
+            rm -f "$temp_request_file" 2>/dev/null
+            return 1
+        fi
+        
         # Extract content from API response
         local ai_content
         ai_content=$(echo "$ai_response" | jq -r '.choices[0].message.content // "Keine AI-Antwort erhalten"' 2>/dev/null)
@@ -166,10 +200,11 @@ EOF
             echo "$ai_content"
         else
             log "⚠️ AI-Hub Response invalid or empty"
+            log "🔍 Full API Response: $ai_response"
             echo "AI-Review konnte nicht erstellt werden - ungültige Antwort vom Hub."
         fi
     else
-        log "⚠️ AI-Review konnte nicht erstellt werden (Hub nicht erreichbar)"
+        log "⚠️ AI-Review konnte nicht erstellt werden (curl exit: $curl_exit_code)"
         echo "AI-Review konnte nicht erstellt werden - Hub nicht erreichbar."
     fi
     
