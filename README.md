@@ -28,6 +28,8 @@ Ein vollautomatisiertes Code Review System mit **AI Hub** Integration.
 results/25-09-25_14-44_my-silly-change.md
 ```
 
+Ein komplettes Beispiel eines review Ergebnisses findet du [hier](./complete-review-example.md).
+
 ## 📄 Generierte Review-Datei
 
 Das System erstellt **eine einzige, vollständige Markdown-Datei** mit folgender Struktur:
