@@ -1,0 +1,58 @@
+[2025-09-26 11:32:52] 🚀 Starting automated code review for branch: feat/STACKITKBA-475-faq-astro-components
+[2025-09-26 11:32:52] ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+[2025-09-26 11:32:52] 🧹 Removing existing directory: /home/dakoenig/Documents/dev/frickeldave/aireview/checkout/ts-mono-repo-feat-STACKITKBA-475-faq-astro-components
+[2025-09-26 11:32:52] 📡 Cloning repository to: /home/dakoenig/Documents/dev/frickeldave/aireview/checkout/ts-mono-repo-feat-STACKITKBA-475-faq-astro-components
+[2025-09-26 11:32:52] ⬇️  Cloning repository (this may take a while for large repositories)...
+[2025-09-26 11:34:40] ✅ Repository cloned successfully
+[2025-09-26 11:34:40] 🔍 Fetching all branches...
+[2025-09-26 11:34:40] 📂 Checking out branch: feat/STACKITKBA-475-faq-astro-components
+[2025-09-26 11:34:40] ✅ Successfully checked out branch: feat/STACKITKBA-475-faq-astro-components
+[2025-09-26 11:34:40] 🔄 Fetching latest changes for branch: feat/STACKITKBA-475-faq-astro-components
+[2025-09-26 11:34:41] 🎯 Finding branch point from develop...
+[2025-09-26 11:34:41] 📍 Branch point found: df9b51936baece2417986e4a4051b40fdb72e26b
+[2025-09-26 11:34:41] 👤 Last commit author: Oliver Müller <oliver.mueller@stackit.cloud>
+[2025-09-26 11:34:41] 📝 Generating comprehensive code review...
+[2025-09-26 11:34:41] 🔍 Analyzing diff for comprehensive review...
+[2025-09-26 11:34:41] 📋 Generating comprehensive code review: /home/dakoenig/Documents/dev/frickeldave/aireview/results/25-09-26_11-32_complete-review-feat-STACKITKBA-475-faq-astro-components.md
+[2025-09-26 11:34:41] 🔍 Starting AI review generation process...
+[2025-09-26 11:34:41] [DEBUG] === MAIN REVIEW PROCESS ===
+[2025-09-26 11:34:41] [DEBUG] Branch: feat/STACKITKBA-475-faq-astro-components
+[2025-09-26 11:34:41] [DEBUG] Author: Oliver Müller
+[2025-09-26 11:34:41] [DEBUG] Commit: refactor
+[2025-09-26 11:34:41] [DEBUG] Temp diff file: /tmp/tmp.pVp6rvU03b
+[2025-09-26 11:34:41] [DEBUG] Calling generate_ai_review function...
+[2025-09-26 11:34:41] 🤖 Generating AI review using Adesso AI Hub...
+[2025-09-26 11:34:41] ⚠️ Diff zu groß (25325 chars), gekürzt auf 10000 chars
+[2025-09-26 11:34:41] [DEBUG] Diff truncated from 25325 to 10000 characters
+[2025-09-26 11:34:41] 📝 API Request Model: gpt-oss-120b-sovereign
+[2025-09-26 11:34:41] 📝 API Request URL: https://adesso-ai-hub.3asabc.de/v1/chat/completions
+[2025-09-26 11:34:41] 🔍 Request payload size: 11876 bytes
+[2025-09-26 11:34:41] [DEBUG] === AI REVIEW REQUEST DETAILS ===
+[2025-09-26 11:34:41] [DEBUG] Branch: feat/STACKITKBA-475-faq-astro-components
+[2025-09-26 11:34:41] [DEBUG] Author: Oliver Müller
+[2025-09-26 11:34:41] [DEBUG] Commit: refactor
+[2025-09-26 11:34:41] [DEBUG] Diff max chars config: 10000
+[2025-09-26 11:34:41] [DEBUG] Original diff size: 25325 characters
+[2025-09-26 11:34:41] [DEBUG] Limited diff size: 10045 characters
+[2025-09-26 11:34:41] [DEBUG] Diff truncated: yes
+[2025-09-26 11:34:41] [DEBUG] Final prompt size: 10456 characters
+[2025-09-26 11:34:41] [DEBUG] JSON escaped prompt size: 11485 characters
+[2025-09-26 11:34:41] [DEBUG] Request file size: 11876 bytes
+[2025-09-26 11:34:41] [DEBUG] API URL: https://adesso-ai-hub.3asabc.de/v1/chat/completions
+[2025-09-26 11:34:41] [DEBUG] API Model: gpt-oss-120b-sovereign
+[2025-09-26 11:34:41] [DEBUG] API Key (first 20 chars): sk-_N1xTujhANpqjwIsm...
+[2025-09-26 11:34:41] [DEBUG] Request payload saved to: /home/dakoenig/Documents/dev/frickeldave/aireview/logs/25-09-26_11-32_ai-request-feat-STACKITKBA-475-faq-astro-components.json
+[2025-09-26 11:34:41] 🚀 Sending API request to AI Hub...
+[2025-09-26 11:34:41] [DEBUG] === SENDING API REQUEST ===
+[2025-09-26 11:34:41] [DEBUG] === API RESPONSE ANALYSIS ===
+[2025-09-26 11:34:41] [DEBUG] Curl exit code: 0
+[2025-09-26 11:34:41] [DEBUG] Response length: 319 characters
+[2025-09-26 11:34:41] [DEBUG] Full response saved to: /home/dakoenig/Documents/dev/frickeldave/aireview/logs/25-09-26_11-32_ai-response-feat-STACKITKBA-475-faq-astro-components.json
+[2025-09-26 11:34:41] 🔍 AI Hub Response (first 200 chars): {"error":{"message":"Authentication Error, Invalid proxy server token passed. Received API Key = sk-...Qxxx, Key Hash (Token) =05acde9ca0b3fce3ad533c2105a6dadba3b2a8003a77aaf9400672221c9f4743. Unable ...
+[2025-09-26 11:34:42] [DEBUG] Response preview (first 500 chars): {"error":{"message":"Authentication Error, Invalid proxy server token passed. Received API Key = sk-...Qxxx, Key Hash (Token) =05acde9ca0b3fce3ad533c2105a6dadba3b2a8003a77aaf9400672221c9f4743. Unable to find token in cache or `LiteLLM_VerificationTokenTable`","type":"token_not_found_in_db","param":"key","code":"401"}}
+[2025-09-26 11:34:42] [ERROR] AI-Hub API Error: Authentication Error, Invalid proxy server token passed. Received API Key = sk-...Qxxx, Key Hash (Token) =05acde9ca0b3fce3ad533c2105a6dadba3b2a8003a77aaf9400672221c9f4743. Unable to find token in cache or `LiteLLM_VerificationTokenTable`
+[2025-09-26 11:34:42] [STACK] Call stack:
+260 generate_ai_review ./review.sh
+1026 main ./review.sh
+[2025-09-26 11:34:42] [DEBUG] Full error response: {"error":{"message":"Authentication Error, Invalid proxy server token passed. Received API Key = sk-...Qxxx, Key Hash (Token) =05acde9ca0b3fce3ad533c2105a6dadba3b2a8003a77aaf9400672221c9f4743. Unable to find token in cache or `LiteLLM_VerificationTokenTable`","type":"token_not_found_in_db","param":"key","code":"401"}}
+[2025-09-26 11:34:42] ❌ Script failed. Check the error messages above.

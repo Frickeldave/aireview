@@ -8,6 +8,8 @@ Ein vollautomatisiertes Code Review System mit **AI Hub** Integration.
 ✅ **AI-Powered Reviews** - AI Hub Integration für automatische Code-Analysen  
 ✅ **Management Summary** - KI-generierte Zusammenfassungen für Führungskräfte  
 ✅ **Consolidated Reports** - Alle Informationen in einer strukturierten Datei  
+✅ **Erweiterte Logging-Funktionen** - Debug-Logs, Request/Response-Speicherung  
+✅ **Konfigurierbare Diff-Kürzung** - Anpassbare Limits für große Änderungen  
 ✅ **80-Char Console Logging** - Optimierte Konsolen-Ausgabe  
 ✅ **Zeitstempel-basierte Benennung** - Dateien mit YY-MM-DD_HH-MM Prefix  
 ✅ **Sichere Konfiguration** - Git-Credentials in externer JSON-Datei  
@@ -25,10 +27,17 @@ Ein vollautomatisiertes Code Review System mit **AI Hub** Integration.
 
 **Ergebnis:** Eine einzige Markdown-Datei mit vollständigem Review:
 ```
-results/25-09-25_14-44_my-silly-change.md
+results/25-09-26_14-44_complete-review-feat-my-silly-change.md
 ```
 
-Ein komplettes Beispiel eines review Ergebnisses findet du [hier](./complete-review-example.md).
+Ein komplettes Beispiel eines Review-Ergebnisses findet du [hier](./complete-review-example.md).
+
+**Zusätzlich generierte Debug-Dateien:**
+```
+logs/25-09-26_14-44_review-log-feat-my-silly-change.log
+logs/25-09-26_14-44_ai-request-feat-my-silly-change.json
+logs/25-09-26_14-44_ai-response-feat-my-silly-change.json
+```
 
 ## 📄 Generierte Review-Datei
 
@@ -87,6 +96,7 @@ Das System nutzt den **AI Hub** für vollautomatische AI-Reviews:
   },
   "ai": {
     "useAI": true,
+    "diff_max_chars": 10000,
     "adesso_hub": {
       "url": "https://.../...",
       "api_key": "...",
@@ -97,6 +107,42 @@ Das System nutzt den **AI Hub** für vollautomatische AI-Reviews:
   }
 }
 ```
+
+#### 📋 **Neue Konfigurationsoption: `diff_max_chars`**
+
+Konfiguriert die maximale Anzahl der Zeichen, die vom Diff zur AI-Analyse gesendet werden:
+
+**Standard-Konfiguration** (empfohlen):
+```json
+{
+  "ai": {
+    "diff_max_chars": 10000    // 10.000 Zeichen Limit für API-Kompatibilität
+  }
+}
+```
+
+**Vollständige Analyse** (keine Kürzung):
+```json
+{
+  "ai": {
+    "diff_max_chars": 0        // Keine Kürzung, vollständiger Diff
+  }
+}
+```
+
+**Konservative Einstellung**:
+```json
+{
+  "ai": {
+    "diff_max_chars": 5000     // Kleineres Limit für strikte API-Constraints
+  }
+}
+```
+
+**Wichtige Hinweise:**
+- ✅ **Standard `10000`**: Guter Kompromiss zwischen Detail und API-Kompatibilität
+- ⚠️ **`0` (keine Kürzung)**: Kann bei großen Diffs zu API-Fehlern führen  
+- 🔍 **Debug-Logs**: Zeigen an, ob und wie der Diff gekürzt wurde
 
 **Vorteile der AI Hub Integration:**
 
@@ -164,6 +210,7 @@ nano review.json
 - `git.password` - Personal Access Token  
 - `repository.url` - URL zu Ihrem Azure DevOps Repository
 - `ai.adesso_hub.api_key` - Ihr AI Hub API Key (falls verfügbar)
+- `ai.diff_max_chars` - Diff-Kürzungs-Limit (optional, Standard: 10000)
 
 ### 3. Dependencies prüfen
 
@@ -194,11 +241,16 @@ chmod +x review.sh
 
 **Output:**
 ```
-[2025-09-25 14:45:54] 🚀 Starting automated code review for branch: feat/user-authentication
-[2025-09-25 14:45:54] ✅ Repository cloned successfully
-[2025-09-25 14:45:54] ✅ AI-Review erfolgreich erstellt  
-[2025-09-25 14:45:54] 📋 Einzige Review-Datei erstellt: 25-09-25_14-45_complete-review-feat-user-authentication.md
-[2025-09-25 14:45:54] 🎉 Review completed! Check results in: results/
+[2025-09-26 10:56:09] 🚀 Starting automated code review for branch: feat/user-authentication
+[2025-09-26 10:56:09] ✅ Repository cloned successfully
+[2025-09-26 10:56:09] ⚠️ Diff zu groß (19475 chars), gekürzt auf 10000 chars
+[2025-09-26 10:56:09] ✅ AI-Review erfolgreich erstellt (1247 characters)
+[2025-09-26 10:56:09] 📋 Einzige Review-Datei erstellt: 25-09-26_10-56_complete-review-feat-user-authentication.md
+[2025-09-26 10:56:09] 🎉 Review completed! Check results in: results/
+
+📝 **Key Review Points:**
+🔴 **Large Change** - High complexity, thorough review required
+⚙️ Configuration files changed - Review for security
 ```
 
 ### Review mit großen Änderungen
@@ -219,10 +271,16 @@ aireview/
 ├── review.sh                    # Haupt-Script
 ├── review.json                  # Konfiguration (nicht in Git!)  
 ├── review.template.json         # Template für Konfiguration
+├── complete-review-example.md   # Vollständiges Beispiel-Review
+├── README.md                    # Diese Dokumentation
 ├── results/                     # Generierte Review-Dateien
 │   └── YY-MM-DD_HH-MM_complete-review-BRANCH.md
-├── checkout/                    # Temporäre Git-Checkouts
-└── README.md                    # Diese Dokumentation
+├── logs/                        # Debug- und Logging-Dateien
+│   ├── YY-MM-DD_HH-MM_review-log-BRANCH.log       # Haupt-Log
+│   ├── YY-MM-DD_HH-MM_ai-request-BRANCH.json      # API-Requests
+│   └── YY-MM-DD_HH-MM_ai-response-BRANCH.json     # API-Responses
+└── checkout/                    # Temporäre Git-Checkouts (automatisch bereinigt)
+    └── ts-mono-repo-BRANCH/     # Temporärer Git-Clone
 ```
 
 ## 🔧 Troubleshooting
@@ -236,6 +294,9 @@ chmod +x review.sh
 
 # Syntax prüfen  
 bash -n review.sh
+
+# Log-Dateien nach fehlgeschlagenen Versuchen prüfen
+ls -la logs/
 ```
 
 ### Git Authentication Fehler
@@ -262,7 +323,70 @@ AI-Review konnte nicht erstellt werden - ungültige Antwort vom Hub.
 - AI Hub Verfügbarkeit testen
 - Als Fallback wird trotzdem ein vollständiges Review erstellt
 
+### Diff zu groß für AI-Analyse
+
+```bash
+# Warnung in der Konsole:
+[2025-09-26 11:23:45] ⚠️ Diff zu groß (25000 chars), gekürzt auf 10000 chars
+```
+
+**Lösungsansätze:**
+1. **Standard-Verhalten beibehalten** - 10.000 Zeichen sind meist ausreichend
+2. **Kürzung deaktivieren** für vollständige Analyse:
+   ```json
+   {
+     "ai": {
+       "diff_max_chars": 0
+     }
+   }
+   ```
+3. **Limit anpassen** je nach AI-Hub Kapazität:
+   ```json
+   {
+     "ai": {
+       "diff_max_chars": 15000
+     }
+   }
+   ```
+
+**Debug-Informationen:** Die Log-Dateien in `logs/` enthalten Details zur Diff-Verarbeitung
+
 ## 📈 Advanced Features
+
+### 🔧 Erweiterte Logging-Funktionen
+
+Das System bietet umfassendes Debug-Logging für Troubleshooting:
+
+```bash
+# Log-Dateien werden automatisch erstellt:
+logs/
+├── 25-09-26_11-23_review-log-BRANCH.log           # Haupt-Log mit allen Details
+├── 25-09-26_11-23_ai-request-BRANCH.json          # API-Request Payload  
+└── 25-09-26_11-23_ai-response-BRANCH.json         # API-Response Details
+```
+
+**Log-Level:**
+- **Console**: Wichtige Informationen (80 Zeichen optimiert)
+- **DEBUG**: Detaillierte technische Informationen (nur in Datei)
+- **ERROR**: Fehler mit Stack-Traces für Debugging
+
+### ⚙️ Konfigurierbare Diff-Verarbeitung
+
+**Intelligente Diff-Kürzung** basierend auf `diff_max_chars`:
+
+```bash
+# Bei großen Diffs:
+[2025-09-26 11:23:45] ⚠️ Diff zu groß (19475 chars), gekürzt auf 10000 chars
+[DEBUG] Diff max chars config: 10000
+[DEBUG] Original diff size: 19475 characters  
+[DEBUG] Limited diff size: 10045 characters
+[DEBUG] Diff truncated: yes
+```
+
+**Verwendungsfälle:**
+- **Große Refactorings**: `diff_max_chars: 0` für vollständige Analyse
+- **API-Limits**: `diff_max_chars: 5000` für strikte Limits  
+- **Standard-Reviews**: `diff_max_chars: 10000` (empfohlen)
 
 ### Console Output Optimization
 
@@ -291,11 +415,16 @@ Bei Fragen oder Problemen:
 
 1. **README.md durchlesen** - Häufige Probleme sind hier dokumentiert
 2. **Script-Output prüfen** - Detaillierte Fehlermeldungen in der Konsole  
-3. **Review-Dateien checken** - Auch bei Fehlern wird meist eine Datei erstellt
-4. **Git-Repository Issues** - Für Bug Reports und Feature Requests
+3. **Log-Dateien checken** - Debug-Informationen in `logs/`
+4. **Review-Dateien checken** - Auch bei Fehlern wird meist eine Datei erstellt
+5. **Git-Repository Issues** - Für Bug Reports und Feature Requests
+
+## 📦 Dependencies
+
+**Erforderliche Tools:**
+- **git** - Für Repository-Operations
 - **jq** - Für JSON-Parsing der Config-Datei
 - **curl** - Für API-Aufrufe (bereits auf den meisten Systemen installiert)
-- **Optional:** OpenAI API-Key für beste AI-Review Qualität
 
 ### jq Installation:
 ```bash

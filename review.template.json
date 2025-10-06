@@ -8,6 +8,7 @@
   },
   "ai": {
     "useAI": true,
+    "diff_max_chars": 10000,
     "adesso_hub": {
       "url": "https://adesso-ai-hub.3asabc.de/v1/chat/completions",
       "api_key": "...",

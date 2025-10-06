@@ -1,6 +1,6 @@
 #!/bin/bash
 
-# Automated Code Review System for GitHub Copilot
+# Automated Code Review System
 # All-in-one Bash solution without external dependencies
 # Usage: ./review.sh <BRANCH_NAME>
 #
@@ -16,6 +16,8 @@ set -e  # Exit on any error
 # Configuration
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 CONFIG_FILE="$SCRIPT_DIR/review.json"
+LOG_DIR="$SCRIPT_DIR/logs"
+mkdir -p "$LOG_DIR"
 
 # Check if branch name is provided
 if [ $# -eq 0 ]; then
@@ -33,19 +35,45 @@ DATE_PREFIX=$(date '+%y-%m-%d_%H-%M')
 BRANCH_NAME_NORMALIZED=$(echo "$BRANCH_NAME" | sed 's/\//-/g')
 TARGET_DIR="$SCRIPT_DIR/checkout/ts-mono-repo-$BRANCH_NAME_NORMALIZED"
 RESULTS_DIR="$SCRIPT_DIR/results"
+LOG_FILE="$LOG_DIR/${DATE_PREFIX}_review-log-$BRANCH_NAME_NORMALIZED.log"
 
-# Function to log messages with timestamp (max 80 chars)
+# Function to log messages with timestamp (max 80 chars for console, detailed for file)
 log() {
     local timestamp="[$(date '+%Y-%m-%d %H:%M:%S')]"
     local message="$1"
     local max_length=80
     local available_length=$((max_length - ${#timestamp} - 1))
     
+    # Console output (80 chars max)
     if [ ${#message} -gt $available_length ]; then
         echo "$timestamp ${message:0:$available_length}..."
     else
         echo "$timestamp $message"
     fi
+    
+    # Detailed file logging
+    echo "$timestamp $message" >> "$LOG_FILE"
+}
+
+# Function for detailed debug logging (only to file)
+debug_log() {
+    local timestamp="[$(date '+%Y-%m-%d %H:%M:%S')]"
+    local message="$1"
+    echo "$timestamp [DEBUG] $message" >> "$LOG_FILE"
+}
+
+# Function to log errors with stack trace
+error_log() {
+    local timestamp="[$(date '+%Y-%m-%d %H:%M:%S')]"
+    local message="$1"
+    echo "$timestamp [ERROR] $message" | tee -a "$LOG_FILE"
+    
+    # Add call stack to log file
+    echo "$timestamp [STACK] Call stack:" >> "$LOG_FILE"
+    local i=0
+    while caller $i >> "$LOG_FILE" 2>/dev/null; do
+        ((i++))
+    done
 }
 
 # Function to cleanup on exit
@@ -59,16 +87,7 @@ trap cleanup EXIT
 # Check if config file exists
 if [ ! -f "$CONFIG_FILE" ]; then
     echo "❌ Error: Configuration file not found: $CONFIG_FILE"
-    echo "Please create the file with the following structure:"
-    echo "{"
-    echo '  "git": {'
-    echo '    "username": "your-username",'
-    echo '    "password": "your-personal-access-token"'
-    echo "  },"
-    echo '  "repository": {'
-    echo '    "url": "https://your-repo-url"'
-    echo "  }"
-    echo "}"
+    echo "Please create the file with the file review.template.json as a starting point."
     exit 1
 fi
 
@@ -87,6 +106,7 @@ REPO_URL=$(jq -r '.repository.url' "$CONFIG_FILE")
 
 # Read AI configuration for Adesso AI Hub
 USE_AI=$(jq -r '.ai.useAI' "$CONFIG_FILE" 2>/dev/null)
+DIFF_MAX_CHARS=$(jq -r '.ai.diff_max_chars' "$CONFIG_FILE" 2>/dev/null)
 ADESSO_HUB_URL=$(jq -r '.ai.adesso_hub.url' "$CONFIG_FILE" 2>/dev/null)
 ADESSO_API_KEY=$(jq -r '.ai.adesso_hub.api_key' "$CONFIG_FILE" 2>/dev/null)
 ADESSO_MODEL=$(jq -r '.ai.adesso_hub.model' "$CONFIG_FILE" 2>/dev/null)
@@ -121,13 +141,19 @@ generate_ai_review() {
     prompt_content+="AUTOR: $commit_author\n" 
     prompt_content+="COMMIT: $commit_message\n\n"
     
-    # Limit diff content to avoid API payload limits (max 10000 chars)
+    # Limit diff content to avoid API payload limits (configurable via diff_max_chars)
     local limited_diff
-    if [ ${#diff_content} -gt 10000 ]; then
-        limited_diff="${diff_content:0:10000}\n\n... (Diff gekürzt aufgrund der Größe) ..."
-        log "⚠️ Diff zu groß (${#diff_content} chars), gekürzt auf 10000 chars"
+    if [ "$DIFF_MAX_CHARS" != "0" ] && [ ${#diff_content} -gt $DIFF_MAX_CHARS ]; then
+        limited_diff="${diff_content:0:$DIFF_MAX_CHARS}\n\n... (Diff gekürzt aufgrund der Größe) ..."
+        log "⚠️ Diff zu groß (${#diff_content} chars), gekürzt auf $DIFF_MAX_CHARS chars"
+        debug_log "Diff truncated from ${#diff_content} to $DIFF_MAX_CHARS characters"
     else
         limited_diff="$diff_content"
+        if [ "$DIFF_MAX_CHARS" = "0" ]; then
+            debug_log "Diff truncation disabled (DIFF_MAX_CHARS=0), using full diff (${#diff_content} chars)"
+        else
+            debug_log "Diff within limit (${#diff_content} chars <= $DIFF_MAX_CHARS), using full diff"
+        fi
     fi
     
     prompt_content+="DIFF:\n$limited_diff\n\n"
@@ -167,8 +193,32 @@ EOF
     log "📝 API Request Model: $ADESSO_MODEL"
     log "📝 API Request URL: $ADESSO_HUB_URL"  
     log "🔍 Request payload size: $(wc -c < "$temp_request_file") bytes"
+    
+    # Detailed debug logging
+    debug_log "=== AI REVIEW REQUEST DETAILS ==="
+    debug_log "Branch: $branch_name"
+    debug_log "Author: $commit_author"
+    debug_log "Commit: $commit_message"
+    debug_log "Diff max chars config: $DIFF_MAX_CHARS"
+    debug_log "Original diff size: ${#diff_content} characters"
+    debug_log "Limited diff size: ${#limited_diff} characters"
+    debug_log "Diff truncated: $([ ${#diff_content} -gt ${#limited_diff} ] && echo "yes" || echo "no")"
+    debug_log "Final prompt size: ${#prompt_content} characters"
+    debug_log "JSON escaped prompt size: $(echo "$escaped_prompt_content" | wc -c) characters"
+    debug_log "Request file size: $(wc -c < "$temp_request_file") bytes"
+    debug_log "API URL: $ADESSO_HUB_URL"
+    debug_log "API Model: $ADESSO_MODEL"
+    debug_log "API Key (first 20 chars): ${ADESSO_API_KEY:0:20}..."
+    
+    # Save request payload for debugging
+    local debug_request_file="$LOG_DIR/${DATE_PREFIX}_ai-request-$BRANCH_NAME_NORMALIZED.json"
+    cp "$temp_request_file" "$debug_request_file"
+    debug_log "Request payload saved to: $debug_request_file"
 
     # Make API request to Adesso AI Hub
+    log "🚀 Sending API request to AI Hub..."
+    debug_log "=== SENDING API REQUEST ==="
+    
     local ai_response
     ai_response=$(curl -s \
         -H "Content-Type: application/json" \
@@ -178,15 +228,37 @@ EOF
     
     local curl_exit_code=$?
     
+    # Detailed response logging
+    debug_log "=== API RESPONSE ANALYSIS ==="
+    debug_log "Curl exit code: $curl_exit_code"
+    debug_log "Response length: ${#ai_response} characters"
+    
+    # Save full response for debugging
+    local debug_response_file="$LOG_DIR/${DATE_PREFIX}_ai-response-$BRANCH_NAME_NORMALIZED.json"
+    echo "$ai_response" > "$debug_response_file"
+    debug_log "Full response saved to: $debug_response_file"
+    
     if [ $curl_exit_code -eq 0 ] && [ -n "$ai_response" ]; then
         # Debug: Log response for troubleshooting (first 200 chars)
         local debug_response=$(echo "$ai_response" | head -c 200)
         log "🔍 AI Hub Response (first 200 chars): ${debug_response}..."
         
+        debug_log "Response preview (first 500 chars): $(echo "$ai_response" | head -c 500)"
+        
+        # Check if response is valid JSON
+        if ! echo "$ai_response" | jq empty 2>/dev/null; then
+            error_log "Invalid JSON response from AI Hub"
+            debug_log "Invalid JSON response content: $ai_response"
+            echo "AI-Review konnte nicht erstellt werden - ungültige JSON-Antwort vom Hub."
+            rm -f "$temp_request_file" 2>/dev/null
+            return 1
+        fi
+        
         # Check if response contains error
         local error_message=$(echo "$ai_response" | jq -r '.error.message // empty' 2>/dev/null)
         if [ -n "$error_message" ]; then
-            log "❌ AI-Hub API Error: $error_message"
+            error_log "AI-Hub API Error: $error_message"
+            debug_log "Full error response: $ai_response"
             echo "AI-Review konnte nicht erstellt werden - API Error: $error_message"
             rm -f "$temp_request_file" 2>/dev/null
             return 1
@@ -196,15 +268,22 @@ EOF
         local ai_content
         ai_content=$(echo "$ai_response" | jq -r '.choices[0].message.content // "Keine AI-Antwort erhalten"' 2>/dev/null)
         
+        debug_log "Extracted AI content length: ${#ai_content} characters"
+        debug_log "AI content preview (first 200 chars): $(echo "$ai_content" | head -c 200)"
+        
         if [ -n "$ai_content" ] && [ "$ai_content" != "null" ] && [ "$ai_content" != "Keine AI-Antwort erhalten" ]; then
+            log "✅ AI review generated successfully (${#ai_content} chars)"
+            debug_log "=== AI REVIEW CONTENT ==="
+            debug_log "$ai_content"
             echo "$ai_content"
         else
-            log "⚠️ AI-Hub Response invalid or empty"
-            log "🔍 Full API Response: $ai_response"
+            error_log "AI-Hub Response invalid or empty - extracted content: '$ai_content'"
+            debug_log "Full API Response for debugging: $ai_response"
             echo "AI-Review konnte nicht erstellt werden - ungültige Antwort vom Hub."
         fi
     else
-        log "⚠️ AI-Review konnte nicht erstellt werden (curl exit: $curl_exit_code)"
+        error_log "AI-Review request failed - curl exit code: $curl_exit_code, response length: ${#ai_response}"
+        debug_log "Failed response content: $ai_response"
         echo "AI-Review konnte nicht erstellt werden - Hub nicht erreichbar."
     fi
     
@@ -214,6 +293,7 @@ EOF
 
 # Set defaults for AI configuration
 [ "$USE_AI" = "null" ] && USE_AI="false"
+[ "$DIFF_MAX_CHARS" = "null" ] && DIFF_MAX_CHARS="10000"
 [ "$ADESSO_HUB_URL" = "null" ] && ADESSO_HUB_URL=""
 [ "$ADESSO_API_KEY" = "null" ] && ADESSO_API_KEY=""
 [ "$ADESSO_MODEL" = "null" ] && ADESSO_MODEL="gpt-oss-120b-sovereign"
@@ -221,7 +301,7 @@ EOF
 [ "$ADESSO_TEMPERATURE" = "null" ] && ADESSO_TEMPERATURE="0.1"
 
 # Export AI configuration for use in functions
-export USE_AI ADESSO_HUB_URL ADESSO_API_KEY ADESSO_MODEL ADESSO_MAX_TOKENS ADESSO_TEMPERATURE
+export USE_AI DIFF_MAX_CHARS ADESSO_HUB_URL ADESSO_API_KEY ADESSO_MODEL ADESSO_MAX_TOKENS ADESSO_TEMPERATURE
 
 if [ "$GIT_USERNAME" = "null" ] || [ "$GIT_PASSWORD" = "null" ]; then
     echo "❌ Error: Git credentials not found in $CONFIG_FILE"
@@ -934,16 +1014,33 @@ create_enhanced_automated_review() {
 # Generate AI review if available, then create the final consolidated review file directly
 AI_REVIEW_CONTENT=""
 
+log "🔍 Starting AI review generation process..."
+debug_log "=== MAIN REVIEW PROCESS ==="
+debug_log "Branch: $BRANCH_NAME"
+debug_log "Author: $LAST_COMMIT_AUTHOR"
+debug_log "Commit: $LAST_COMMIT_MESSAGE"
+debug_log "Temp diff file: $TEMP_DIFF_FILE"
+
 # Call AI review function with correct parameters
+debug_log "Calling generate_ai_review function..."
 AI_REVIEW_RESULT=$(generate_ai_review "$BRANCH_NAME" "$LAST_COMMIT_AUTHOR" "$LAST_COMMIT_MESSAGE" "$(cat $TEMP_DIFF_FILE)")
 
+debug_log "AI review function returned: ${#AI_REVIEW_RESULT} characters"
+debug_log "AI review result preview (first 100 chars): $(echo "$AI_REVIEW_RESULT" | head -c 100)"
+
 if [ -n "$AI_REVIEW_RESULT" ] && [ "$AI_REVIEW_RESULT" != "AI-Review konnte nicht erstellt werden"* ]; then
-    log "✅ AI-Review erfolgreich erstellt"
+    log "✅ AI-Review erfolgreich erstellt (${#AI_REVIEW_RESULT} characters)"
     AI_REVIEW_CONTENT="$AI_REVIEW_RESULT"
+    debug_log "=== AI REVIEW SUCCESS ==="
+    debug_log "Final AI review content length: ${#AI_REVIEW_CONTENT}"
 else
+    error_log "AI-Review generation failed"
+    debug_log "Failed AI review result: '$AI_REVIEW_RESULT'"
     log "⚠️ AI-Review konnte nicht erstellt werden (Hub nicht erreichbar)"
     AI_REVIEW_CONTENT="AI-Review konnte nicht erstellt werden - Hub nicht erreichbar."
 fi
+
+debug_log "=== CREATING CONSOLIDATED REVIEW ==="
 
 # Create the final consolidated review file (this is now the ONLY file created)
 CONSOLIDATED_FILE=$(create_consolidated_review "$TEMP_DIFF_FILE" "$TEMP_SUMMARY_FILE" "$REVIEW_FILE" "$AI_REVIEW_CONTENT")
