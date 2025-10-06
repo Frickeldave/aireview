@@ -1,1 +1,0 @@
-{"error":{"message":"Authentication Error, Invalid proxy server token passed. Received API Key = sk-...Qxxx, Key Hash (Token) =05acde9ca0b3fce3ad533c2105a6dadba3b2a8003a77aaf9400672221c9f4743. Unable to find token in cache or `LiteLLM_VerificationTokenTable`","type":"token_not_found_in_db","param":"key","code":"401"}}
